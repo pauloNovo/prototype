@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GTicket v18.0 - Sistema de Gestão de Ciclos</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        :root {
+            --caixa-blue: #002766; --caixa-light: #0056b3; --caixa-green: #28a745;
+            --caixa-yellow: #fbc02d; --caixa-red: #d32f2f; --bg-gray: #f4f7f9;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-gray); margin: 0; color: #333; overflow-x: hidden; }
+        
+        /* HEADER */
+        header { 
+            background: var(--caixa-blue); color: white; padding: 0 40px; 
+            display: flex; justify-content: space-between; align-items: center; 
+            position: sticky; top: 0; z-index: 1000; height: 65px;
+        }
+        .nav-menu { display: flex; height: 100%; }
+        .nav-item { padding: 0 20px; display: flex; align-items: center; cursor: pointer; font-size: 0.85rem; transition: 0.3s; border-bottom: 4px solid transparent; }
+        .nav-item:hover { background: rgba(255,255,255,0.1); border-bottom-color: var(--caixa-green); }
+
+        .page { display: none; padding: 30px 50px; animation: fadeIn 0.3s ease; }
+        .active-page { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* LAYOUT & COMPONENTES GERAIS (RESTAURADOS) */
+        .main-wrapper { max-width: 1440px; margin: 0 auto; padding-top: 10px; }
+        
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 20px; border: 1px solid #eaedf1; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--bg-gray); padding-bottom: 12px; margin-bottom: 20px; }
+        .card-header h2, .card-header h3 { margin: 0; color: var(--caixa-blue); font-size: 1.25rem; }
+        
+        .grid-container { display: grid; gap: 20px; margin-bottom: 20px; }
+        
+        .dash-filters { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #e1e5eb; margin-bottom: 20px; }
+        .dash-filters div { flex: 1; min-width: 140px; }
+        .dash-filters label { margin-top: 0; margin-bottom: 5px; color: #555; }
+        
+        .list-group { display: flex; flex-direction: column; gap: 10px; min-height: 100%; padding-bottom: 20px; }
+        
+        .table-container { overflow-x: auto; border-radius: 8px; border: 1px solid #eee; }
+        .table-container table { margin: 0; }
+
+        /* DASHBOARD GRID */
+        .dash-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 15px; border-radius: 12px; text-align: center; border-bottom: 3px solid var(--caixa-blue); }
+        .stat-card h2 { margin: 5px 0; color: var(--caixa-blue); }
+        .chart-card { background: white; padding: 20px; border-radius: 15px; }
+
+        /* CHECKPOINT GRID */
+        .check-grid { background: #fff; padding: 20px; border-radius: 15px; max-height: 400px; overflow-y: auto; }
+        .check-item { border-left: 5px solid var(--caixa-yellow); background: #fffde7; padding: 12px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+
+        /* BACKLOG CARDS */
+        .backlog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+        .backlog-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 10px; border-left: 6px solid #ccc; }
+        .priority-high { border-left-color: var(--caixa-red); }
+        .priority-medium { border-left-color: var(--caixa-yellow); }
+        .priority-low { border-left-color: var(--caixa-green); }
+        .backlog-card-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .backlog-card-title { font-weight: bold; font-size: 1.1rem; color: var(--caixa-blue); margin: 0; }
+        .backlog-card-desc { font-size: 0.9rem; color: #666; }
+        .backlog-card-meta { font-size: 0.8rem; color: #444; line-height: 1.4; }
+        .backlog-card-actions { display: flex; gap: 10px; margin-top: auto; padding-top: 10px; border-top: 1px solid #eee; }
+
+        /* SPRINTS CARDS */
+        .sprint-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .sprint-card { 
+            background: white; padding: 25px; border-radius: 15px; cursor: pointer; 
+            position: relative; border: 3px solid transparent; transition: 0.3s;
+        }
+        .sprint-pct { font-size: 2.5rem; font-weight: bold; color: var(--caixa-blue); }
+        
+        /* ANIMAÇÕES DE ALERTA */
+        .border-blink-red { animation: blink-red 1.5s infinite; }
+        .border-blink-yellow { animation: blink-yellow 1.5s infinite; }
+        @keyframes blink-red { 0% { border-color: transparent; } 50% { border-color: var(--caixa-red); } 100% { border-color: transparent; } }
+        @keyframes blink-yellow { 0% { border-color: transparent; } 50% { border-color: var(--caixa-yellow); } 100% { border-color: transparent; } }
+
+        /* BOARD TRELLO */
+        .board-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 20px; }
+        .board-column { background: #dfe3e6; border-radius: 10px; padding: 15px; min-height: 500px; }
+        .board-column h4 { margin: 0 0 15px 0; color: var(--caixa-blue); text-transform: uppercase; font-size: 0.8rem; border-bottom: 2px solid #ccc; padding-bottom: 5px; }
+        .card-task { background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: grab; border-left: 5px solid #ccc; }
+
+        /* LOG GRID */
+        .log-container { background: #fff; padding: 20px; border-radius: 15px; margin-top: 20px; max-height: 300px; overflow-y: auto; }
+        .log-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .log-table th { padding: 10px; border-bottom: 2px solid #eee; color: var(--caixa-blue); position: sticky; top: 0; background: #fff; z-index: 10; }
+        .log-table td { padding: 10px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+
+        /* PRODUTIVIDADE */
+        .prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; }
+        .prod-card { background: white; padding: 20px; border-radius: 12px; border-top: 4px solid var(--caixa-blue); box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+        .prod-card h3 { margin: 0 0 15px 0; color: var(--caixa-blue); text-align: center; }
+        .prod-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .prod-stat-item { background: var(--bg-gray); padding: 10px; border-radius: 8px; text-align: center; }
+        .prod-stat-item.delayed { border-left: 3px solid var(--caixa-red); }
+        .prod-stat-item.doing { border-left: 3px solid var(--caixa-yellow); }
+        .prod-stat-item.done { border-left: 3px solid var(--caixa-green); }
+        .prod-stat-item.total { border-left: 3px solid var(--caixa-blue); }
+
+        /* TELA INICIAL (HOME) */
+        .home-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: calc(100vh - 150px); text-align: center; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); padding: 40px; margin-top: 20px;}
+        .home-logo { font-size: 5rem; color: var(--caixa-blue); margin-bottom: 20px; }
+        .home-title { font-size: 2.5rem; color: var(--caixa-blue); margin: 0; font-weight: 800; }
+        .home-subtitle { font-size: 1.2rem; color: #666; margin: 10px 0 30px; }
+        .home-features { display: flex; gap: 20px; margin-bottom: 40px; justify-content: center; flex-wrap: wrap; }
+        .feature-card { background: var(--bg-gray); padding: 20px; border-radius: 10px; width: 220px; border-bottom: 3px solid var(--caixa-yellow); text-align: center; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .feature-card:hover { transform: translateY(-5px); box-shadow: 0 8px 15px rgba(0,0,0,0.07); }
+        .feature-card i { font-size: 2rem; color: var(--caixa-blue); margin-bottom: 10px; }
+
+        /* HEATMAP DE SAÚDE */
+        .health-heatmap { display: table; width: 100%; border-collapse: separate; border-spacing: 5px; }
+        .health-heatmap-row { display: table-row; }
+        .health-heatmap-cell { display: table-cell; padding: 15px; border-radius: 8px; background: #f9f9f9; text-align: center; vertical-align: middle; }
+        .health-heatmap-header { font-weight: bold; color: var(--caixa-blue); }
+        .health-indicator { width: 50px; height: 50px; border-radius: 10px; margin: auto; box-shadow: inset 0 0 10px rgba(0,0,0,0.1); }
+        .health-green { background: var(--caixa-green); }
+        .health-yellow { background: var(--caixa-yellow); }
+        .health-red { background: var(--caixa-red); }
+
+        /* MODAIS */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; }
+        .modal-content { background: white; width: 700px; border-radius: 15px; overflow: hidden; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+        .modal-header { padding: 15px 25px; color: white; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 25px; }
+        
+        input, select, textarea { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        label { font-size: 0.8rem; font-weight: bold; color: var(--caixa-blue); display: block; margin-top: 10px; }
+        .btn { padding: 12px 25px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-success { background: var(--caixa-green); color: white; }
+        .btn-primary { background: var(--caixa-blue); color: white; }
+
+        /* ALERTA CUSTOM */
+        #custom-alert { position: fixed; top: 20px; right: 20px; background: white; border-left: 10px solid var(--caixa-green); padding: 20px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 3000; display: none; animation: slideIn 0.3s; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        /* WHATSAPP SIM */
+        .whatsapp-content { width: 380px; background: #E5DDD5; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+        .whatsapp-header { background: #075E54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 15px; border-top-left-radius: 10px; border-top-right-radius: 10px; }
+        .whatsapp-header i { font-size: 1.5rem; }
+        .whatsapp-header div { flex: 1; }
+        .whatsapp-body { background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); padding: 20px; height: 500px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        .chat-bubble { max-width: 80%; padding: 10px 15px; border-radius: 8px; line-height: 1.4; font-size: 0.9rem; }
+        .chat-bubble-sent { background: #DCF8C6; align-self: flex-end; }
+        .chat-bubble-received { background: #FFF; align-self: flex-start; }
+
+        /* EMULADOR MOBILE */
+        .mobile-emulator { width: 375px; height: 750px; background: var(--bg-gray); border-radius: 35px; border: 12px solid #222; box-shadow: 0 25px 50px rgba(0,0,0,0.3); display: flex; flex-direction: column; overflow: hidden; position: relative; margin: 0 auto; }
+        .mobile-header { background: var(--caixa-blue); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 1.1rem; font-weight: bold; }
+        .mobile-body { padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .mobile-card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .mobile-btn { width: 100%; padding: 15px; border-radius: 10px; border: none; font-weight: bold; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s; color: white; margin-bottom: 10px; }
+        .mobile-btn:active { transform: scale(0.98); }
+        .mobile-btn-green { background: var(--caixa-green); }
+        .mobile-btn-yellow { background: var(--caixa-yellow); color: #333; }
+        .mobile-btn-red { background: var(--caixa-red); }
+    </style>
+</head>
+<body>
+
+<div id="custom-alert">
+    <strong id="alert-title" style="display:block; color: var(--caixa-blue)">Aviso</strong>
+    <span id="alert-msg">Ação realizada com sucesso!</span>
+</div>
+
+<header>
+    <div class="header-logo" onclick="showPage('home')">
+        <i class="fa-solid fa-building-columns"></i> CAIXA Assistência
+    </div>
+    <nav class="nav-menu">
+        <div class="nav-item" onclick="showPage('dash')"><i class="fa-solid fa-chart-line"></i> Dashboard</div>
+        <div class="nav-item" onclick="showPage('prod')"><i class="fa-solid fa-users"></i> Produtividade</div>
+        <div class="nav-item" onclick="showPage('backlog')"><i class="fa-solid fa-ticket"></i> Backlog</div>
+        <div class="nav-item" onclick="showPage('sprints')"><i class="fa-solid fa-rotate"></i> Sprints</div>
+        <div class="nav-item" onclick="showPage('logs')"><i class="fa-solid fa-list-check"></i> Auditoria</div>
+    </nav>
+    <div class="header-user">
+        <span>Olá,</span>
+        <select id="logged-user">
+            <option value="Emanuele Cristina Ribeiro Oliveira">Emanuele Cristina</option>
+            <option value="Daniela Santos Napolitano">Daniela Santos</option>
+            <option value="Ana Pereira">Ana Pereira</option>
+            <option value="Bruno Costa">Bruno Costa</option>
+            <option value="Carla Dias">Carla Dias</option>
+            <option value="Eduardo Lima">Eduardo Lima</option>
+            <option value="Fernanda Martins">Fernanda Martins</option>
+            <option value="Gustavo Almeida">Gustavo Almeida</option>
+            <option value="Helena Rocha">Helena Rocha</option>
+            <option value="Igor Barbosa">Igor Barbosa</option>
+            <option value="Juliana Castro">Juliana Castro</option>
+            <option value="Lucas Gomes">Lucas Gomes</option>
+            <option value="Mariana Ferreira">Mariana Ferreira</option>
+            <option value="Nícolas Azevedo">Nícolas Azevedo</option>
+            <option value="Olívia Sousa">Olívia Sousa</option>
+            <option value="Pedro Ribeiro">Pedro Ribeiro</option>
+            <option value="Rafaela Santos">Rafaela Santos</option>
+        </select>
+    </div>
+</header>
+
+<!-- PAGINA: HOME (TELA INICIAL) -->
+<div id="page-home" class="page active-page">
+    <div class="home-container">
+        <i class="fa-solid fa-shield-halved home-logo"></i>
+        <h1 class="home-title">Bem-vindo ao Gestor de Tickets</h1>
+        <p class="home-subtitle">Sua plataforma centralizada para gestão de ciclos e produtividade.</p>
+
+        <div class="home-features">
+            <div class="feature-card" onclick="showPage('dash')">
+                <i class="fa-solid fa-chart-line"></i>
+                <h3>Dashboards</h3>
+                <p style="font-size:0.85rem; color:#666">Acompanhe métricas e eficiência em tempo real.</p>
+            </div>
+            <div class="feature-card" onclick="showPage('backlog')">
+                <i class="fa-solid fa-ticket"></i>
+                <h3>Backlog</h3>
+                <p style="font-size:0.85rem; color:#666">Crie e gerencie a lista de tarefas pendentes.</p>
+            </div>
+            <div class="feature-card" onclick="showPage('prod')">
+                <i class="fa-solid fa-users"></i>
+                <h3>Produtividade</h3>
+                <p style="font-size:0.85rem; color:#666">Acompanhe a performance da equipe.</p>
+            </div>
+            <div class="feature-card" onclick="showPage('sprints')">
+                <i class="fa-solid fa-rotate"></i>
+                <h3>Sprints Ágeis</h3>
+                <p style="font-size:0.85rem; color:#666">Organize as entregas do RH em ciclos eficientes.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="main-wrapper">
+    <!-- PAGINA: DASHBOARD -->
+    <div id="page-dash" class="page">
+        <div class="stats-row">
+            <div class="stat-card"><h3>Sprints</h3><h2 id="count-sprints">0</h2></div>
+            <div class="stat-card"><h3>Atividades</h3><h2 id="count-tasks">0</h2></div>
+            <div class="stat-card"><h3>Atrasos</h3><h2 style="color: var(--caixa-red)">02</h2></div>
+            <div class="stat-card"><h3>Eficiência</h3><h2>94%</h2></div>
+        </div>
+        <div class="card">
+            <div class="dash-filters">
+                <div><label style="margin-top:0">Data Inicial</label><input type="date" id="dash-filter-start" onchange="applyDashFilters()"></div>
+                <div><label style="margin-top:0">Data Final</label><input type="date" id="dash-filter-end" onchange="applyDashFilters()"></div>
+                <div><label style="margin-top:0">Sprint</label><select id="dash-filter-sprint" onchange="applyDashFilters()"><option value="Todos">Todas</option></select></div>
+                <div><label style="margin-top:0">Tarefa</label><select id="dash-filter-task" onchange="applyDashFilters()"><option value="Todos">Todas</option></select></div>
+                <div><label style="margin-top:0">Responsável</label><select id="dash-filter-resp" onchange="applyDashFilters()">
+                    <option value="Todos">Todos</option>
+                    <option>Emanuele Cristina Ribeiro Oliveira</option>
+                    <option>Daniela Santos Napolitano</option>
+                    <option>Ana Pereira</option>
+                    <option>Bruno Costa</option>
+                    <option>Carla Dias</option>
+                    <option>Eduardo Lima</option>
+                    <option>Fernanda Martins</option>
+                    <option>Gustavo Almeida</option>
+                    <option>Helena Rocha</option>
+                    <option>Igor Barbosa</option>
+                    <option>Juliana Castro</option>
+                    <option>Lucas Gomes</option>
+                    <option>Mariana Ferreira</option>
+                    <option>Nícolas Azevedo</option>
+                    <option>Olívia Sousa</option>
+                    <option>Pedro Ribeiro</option>
+                    <option>Rafaela Santos</option>
+                </select></div>
+                <button class="btn btn-secondary" onclick="clearDashFilters()">Limpar</button>
+            </div>
+        </div>
+
+        <div class="grid-container" style="grid-template-columns: 2fr 1fr;">
+            <div>
+                <div class="grid-container" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+                    <div class="card"><h4 style="margin-top:0;">Entrega x Escopo</h4><canvas id="heatChart"></canvas></div>
+                    <div class="card"><h4 style="margin-top:0;">Alterações de Datas</h4><canvas id="dateChart"></canvas></div>
+                    <div class="card"><h4 style="margin-top:0;">Saúde das Atividades</h4><canvas id="taskHealthChart"></canvas></div>
+                </div>
+            </div>
+            <div class="card">
+                <h4 style="margin-top:0; color: var(--caixa-blue-dark)">Acompanhamentos Hoje</h4>
+                <div id="checkpoint-today-list" style="max-height: 400px; overflow-y: auto;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h3>Heatmap de Saúde (Responsável vs. Máquina)</h3></div>
+            <div id="health-heatmap-container"></div>
+        </div>
+    </div>
+
+    <!-- PAGINA: PRODUTIVIDADE -->
+    <div id="page-prod" class="page">
+        <div class="card">
+            <div class="card-header"><h2>Visão de Produtividade da Equipe</h2></div>
+            <div id="prod-grid" class="prod-grid"></div>
+        </div>
+    </div>
+
+    <!-- PAGINA: BACKLOG -->
+    <div id="page-backlog" class="page">
+        <div class="card">
+            <div class="card-header">
+                <h2>Backlog de Tickets</h2>
+                <button class="btn btn-primary" onclick="openTicketModal()"><i class="fa-solid fa-plus"></i> Cadastrar Ticket</button>
+            </div>
+            <div class="dash-filters">
+                <div><label style="margin-top:0">Data Inicial</label><input type="date" id="backlog-filter-start" onchange="renderBacklog()"></div>
+                <div><label style="margin-top:0">Data Final</label><input type="date" id="backlog-filter-end" onchange="renderBacklog()"></div>
+                <div><label style="margin-top:0">Sprint</label><select id="backlog-filter-sprint" onchange="renderBacklog()"><option value="Todos">Todas</option></select></div>
+                <div><label style="margin-top:0">Tarefa</label><select id="backlog-filter-task" onchange="renderBacklog()"><option value="Todos">Todas</option></select></div>
+                <div><label style="margin-top:0">Status</label><select id="backlog-filter-status" onchange="renderBacklog()">
+                    <option value="Todos">Todos</option>
+                    <option value="todo">A Fazer</option>
+                    <option value="doing">Em Andamento</option>
+                    <option value="blocked">Bloqueada</option>
+                    <option value="done">Concluída</option>
+                </select></div>
+                <div><label style="margin-top:0">Saúde</label><select id="backlog-filter-health" onchange="renderBacklog()">
+                    <option value="Todos">Todos</option>
+                    <option value="green">Verde</option>
+                    <option value="yellow">Amarela</option>
+                    <option value="red">Vermelha</option>
+                </select></div>
+                <button class="btn btn-secondary" onclick="clearBacklogFilters()">Limpar</button>
+            </div>
+        </div>
+        <div id="backlog-grid" class="backlog-grid"></div>
+    </div>
+
+    <!-- PAGINA: SPRINTS -->
+    <div id="page-sprints" class="page">
+        <div class="card">
+            <div class="card-header">
+                <h2>Gerenciamento de Sprints</h2>
+                <button class="btn btn-success" onclick="openSprintModal()"><i class="fa-solid fa-plus"></i> Nova Sprint</button>
+            </div>
+            <div class="sprint-grid" id="sprint-list"></div>
+        </div>
+    </div>
+
+    <!-- PAGINA: TAREFA (DETALHES E ACOMPANHAMENTO) -->
+    <div id="page-task" class="page">
+        <div class="card">
+            <div class="card-header">
+                <h2 id="task-page-title">Detalhes da Atividade</h2>
+                <button class="btn btn-secondary" onclick="showPage('backlog')"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
+            </div>
+        </div>
+        <div class="grid-container" style="grid-template-columns: 1fr 1fr; align-items: flex-start;">
+            <div>
+                <div class="card" id="task-page-details"></div>
+                <div class="card">
+                    <h4 style="margin-top:0; color: var(--caixa-blue-dark)">Acompanhamento (Check-in)</h4>
+                    <textarea id="task-checkin-desc" rows="3" placeholder="Descreva o andamento da atividade... (Obrigatório se classificar como Amarelo ou Vermelho)"></textarea>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="btn btn-success" style="flex:1;" onclick="submitTaskCheckin('green')"><i class="fa-regular fa-face-smile-beam"></i> No Prazo</button>
+                        <button class="btn" style="flex:1; background: var(--caixa-yellow); color: #333;" onclick="submitTaskCheckin('yellow')"><i class="fa-regular fa-face-meh"></i> Risco</button>
+                        <button class="btn btn-danger" style="flex:1;" onclick="submitTaskCheckin('red')"><i class="fa-regular fa-face-frown"></i> Atraso/Bloqueio</button>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="card">
+                    <h4 style="margin-top:0; color: var(--caixa-blue-dark)">Evolução da Data de Entrega</h4>
+                    <canvas id="taskEvolutionChart"></canvas>
+                </div>
+                <div class="card">
+                    <h4 style="margin-top:0; color: var(--caixa-blue-dark)">Histórico da Atividade</h4>
+                    <div id="task-page-logs" style="max-height: 400px; overflow-y: auto;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PAGINA: BOARD (TRELLO) -->
+<div id="page-board" class="page">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+        <h2 id="board-title" style="margin:0; color: var(--caixa-blue-dark);">Sprint Board</h2>
+        <div style="display:flex; gap: 15px; align-items: center;">
+            <select id="board-filter-resp" onchange="renderBoard()">
+                <option value="Todos">Todos os Responsáveis</option>
+                <option value="Emanuele Cristina Ribeiro Oliveira">Emanuele</option>
+                <option value="Daniela Santos Napolitano">Daniela</option>
+            </select>
+            <div class="btn btn-secondary" onclick="showPage('sprints')">Voltar</div>
+        </div>
+    </div>
+    <div class="board-container">
+        <div class="board-column" id="col-todo"><h4>A Fazer</h4><div class="list-group" style="min-height: 400px;"></div></div>
+        <div class="board-column" id="col-doing"><h4>Em Andamento</h4><div class="list-group" style="min-height: 400px;"></div></div>
+        <div class="board-column" id="col-blocked"><h4>Bloqueada</h4><div class="list-group" style="min-height: 400px;"></div></div>
+        <div class="board-column" id="col-done"><h4>Concluída</h4><div class="list-group" style="min-height: 400px;"></div></div>
+    </div>
+</div>
+
+<!-- PAGINA: LOGS / AUDITORIA -->
+<div id="page-logs" class="page">
+    <h2 style="margin-top:0">Auditoria e Rastreador de Eventos</h2>
+    <div class="dash-filters" style="display: flex; gap: 15px; margin-bottom: 20px; background: white; padding: 15px; border-radius: 12px; align-items: flex-end; flex-wrap: wrap;">
+        <div><label>Data Inicial</label><input type="date" id="log-filter-start" onchange="renderLogs()"></div>
+        <div><label>Data Final</label><input type="date" id="log-filter-end" onchange="renderLogs()"></div>
+        <div><label>Sprint</label><select id="log-filter-sprint" onchange="renderLogs()"><option value="Todos">Todas</option></select></div>
+        <div><label>Tarefa</label><select id="log-filter-task" onchange="renderLogs()"><option value="Todos">Todas</option></select></div>
+        <div><label>Usuário</label><select id="log-filter-user" onchange="renderLogs()">
+            <option value="Todos">Todos</option>
+            <option>Sistema</option>
+            <option>Emanuele Cristina Ribeiro Oliveira</option>
+            <option>Daniela Santos Napolitano</option>
+            <option>Ana Pereira</option>
+            <option>Bruno Costa</option>
+            <option>Carla Dias</option>
+            <option>Eduardo Lima</option>
+            <option>Fernanda Martins</option>
+            <option>Gustavo Almeida</option>
+            <option>Helena Rocha</option>
+            <option>Igor Barbosa</option>
+            <option>Juliana Castro</option>
+            <option>Lucas Gomes</option>
+            <option>Mariana Ferreira</option>
+            <option>Nícolas Azevedo</option>
+            <option>Olívia Sousa</option>
+            <option>Pedro Ribeiro</option>
+            <option>Rafaela Santos</option>
+        </select></div>
+        <button class="btn btn-secondary" onclick="clearLogFilters()">Limpar</button>
+    </div>
+    <div class="table-container" style="max-height: calc(100vh - 300px); margin-top: 0;">
+        <table class="log-table">
+            <thead><tr><th style="width: 150px;">Data/Hora</th><th style="width: 130px;">Usuário</th><th style="width: 150px;">Ação</th><th>Detalhes da Alteração</th></tr></thead>
+            <tbody id="log-tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- PAGINA: ACOMPANHAMENTO MOBILE -->
+<div id="page-mobile-tracking" class="page">
+    <div style="display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 150px);">
+        <div class="mobile-emulator">
+            <div class="mobile-header" style="background: var(--caixa-blue-dark)">
+                <i class="fa-solid fa-arrow-left" style="cursor:pointer" onclick="showPage('dash')"></i>
+                <span>Check-in Diário</span>
+                <i class="fa-solid fa-ellipsis-vertical"></i>
+            </div>
+            <div class="mobile-body" id="mobile-tracking-body"></div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL GERAL -->
+<div class="modal" id="modal-container">
+    <div class="modal-content">
+        <div id="modal-header" class="modal-header">
+            <h3 id="modal-title" style="margin:0">Título</h3>
+            <i class="fa-solid fa-xmark" style="cursor:pointer" onclick="closeModal()"></i>
+        </div>
+        <div id="modal-body" class="modal-body"></div>
+    </div>
+</div>
+
+<!-- MODAL WHATSAPP -->
+<div class="modal" id="whatsapp-modal-container">
+    <div class="whatsapp-content">
+        <div class="whatsapp-header" style="background: #075E54;">
+            <i class="fa-brands fa-whatsapp"></i>
+            <div>
+                <strong style="display:block">Lembretes GTicket</strong>
+                <small>online</small>
+            </div>
+            <i class="fa-solid fa-xmark" style="cursor:pointer" onclick="closeWhatsAppModal()"></i>
+        </div>
+        <div id="whatsapp-body" class="whatsapp-body"></div>
+    </div>
+</div>
+
+<script>
+    // --- ESTADO ---
+    let sprints = [];
+    let tasks = [];
+    let activeSprintId = null;
+    let activeTaskId = null;
+    let boardSortables = [];
+    let logs = [];
+
+    // --- PERSISTÊNCIA ---
+    function save() {
+        localStorage.setItem('gticket_sprints_v3', JSON.stringify(sprints));
+        localStorage.setItem('gticket_tasks_v3', JSON.stringify(tasks));
+        localStorage.setItem('gticket_logs_v3', JSON.stringify(logs));
+    }
+
+    function load() {
+        const storedSprints = localStorage.getItem('gticket_sprints_v3');
+        const storedTasks = localStorage.getItem('gticket_tasks_v3');
+        const storedLogs = localStorage.getItem('gticket_logs_v3');
+        if (storedSprints && storedTasks) {
+            sprints = JSON.parse(storedSprints);
+            tasks = JSON.parse(storedTasks);
+            if (storedLogs) logs = JSON.parse(storedLogs);
+        } else {
+            const responsibles = [
+                "Emanuele Cristina Ribeiro Oliveira", "Daniela Santos Napolitano", "Ana Pereira", "Bruno Costa", "Carla Dias", 
+                "Eduardo Lima", "Fernanda Martins", "Gustavo Almeida", "Helena Rocha", "Igor Barbosa", "Juliana Castro", 
+                "Lucas Gomes", "Mariana Ferreira", "Nícolas Azevedo", "Olívia Sousa", "Pedro Ribeiro", "Rafaela Santos"
+            ];
+            const statuses = ['todo', 'doing', 'done', 'blocked'];
+
+            sprints = [
+                {id: 1, title: "Sprint #12 - Onboarding", status: "doing", pct: 45, checkToday: true, delayed: false, health: 'yellow', start: '2026-04-01', end: '2026-04-15'},
+                {id: 2, title: "Sprint #13 - Revisão Folha", status: "todo", pct: 0, checkToday: false, delayed: true, health: 'red', start: '2026-03-01', end: '2026-03-15'},
+                {id: 3, title: "Sprint #11 - Fechamento Março", status: "done", pct: 100, checkToday: false, delayed: false, health: 'green', start: '2026-03-01', end: '2026-03-31'},
+                {id: 4, title: "Sprint #14 - Atualização Cadastral", status: "todo", pct: 0, checkToday: false, delayed: false, health: 'green', start: '2026-05-01', end: '2026-05-15'},
+                {id: 5, title: "Sprint #15 - Avaliação de Desempenho", status: "todo", pct: 0, checkToday: false, delayed: false, health: 'green', start: '2026-06-01', end: '2026-06-15'},
+                {id: 6, title: "Sprint #16 - Treinamentos Q2", status: "todo", pct: 0, checkToday: false, delayed: false, health: 'green', start: '2026-07-01', end: '2026-07-15'},
+                {id: 7, title: "Sprint #10 - Fechamento Fevereiro", status: "done", pct: 100, checkToday: false, delayed: false, health: 'green', start: '2026-02-01', end: '2026-02-28'},
+                {id: 8, title: "Sprint #17 - Recrutamento TI", status: "doing", pct: 30, checkToday: false, delayed: true, health: 'yellow', start: '2026-03-20', end: '2026-04-10'},
+                {id: 9, title: "Sprint #18 - Integração Filiais", status: "todo", pct: 0, checkToday: false, delayed: false, health: 'green', start: '2026-05-01', end: '2026-05-20'},
+                {id: 10, title: "Sprint #19 - Fechamento Abril", status: "todo", pct: 0, checkToday: false, delayed: false, health: 'green', start: '2026-04-10', end: '2026-04-30'},
+                {id: 11, title: "Sprint #09 - Janeiro", status: "done", pct: 100, checkToday: false, delayed: false, health: 'green', start: '2026-01-01', end: '2026-01-31'},
+                {id: 12, title: "Sprint #20 - SIPAT 2026", status: "todo", pct: 0, checkToday: false, delayed: false, health: 'green', start: '2026-03-01', end: '2026-06-25'},
+                {id: 13, title: "Sprint #08 - Passivo Trabalhista", status: "doing", pct: 15, checkToday: false, delayed: true, health: 'red', start: '2026-02-01', end: '2026-02-28'},
+                {id: 14, title: "Sprint #21 - Pesquisa de Clima", status: "doing", pct: 50, checkToday: false, delayed: true, health: 'yellow', start: '2026-03-25', end: '2026-04-05'}
+            ];
+            tasks = [
+                {id: 101, sprintId: 1, title: "Coleta de Documentos", resp: "Emanuele Cristina Ribeiro Oliveira", status: "done", start: "2026-04-01", end: "2026-04-05", check: "2026-04-01T10:00", desc: "Coletar RG e CPF dos novos colaboradores", priority: "high"},
+                {id: 102, sprintId: 1, title: "Treinamento Inicial", resp: "Daniela Santos Napolitano", status: "doing", start: "2026-04-02", end: "2026-04-08", check: "2026-04-05T14:00", desc: "Apresentar vídeo de boas vindas e normas da empresa", priority: "medium"},
+                {id: 103, sprintId: 1, title: "Criação de Acessos", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-04-03", end: "2026-04-04", check: "2026-04-03T09:00", desc: "Solicitar e-mail e acessos aos sistemas internos", priority: "high"},
+                {id: 104, sprintId: 1, title: "Assinatura de Contratos", resp: "Daniela Santos Napolitano", status: "blocked", start: "2026-04-01", end: "2026-04-02", check: "2026-04-02T16:00", desc: "Aguardando retorno do jurídico", priority: "high", health: "red"},
+                {id: 105, sprintId: 2, title: "Levantamento de Horas", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-04-10", end: "2026-04-12", check: "2026-04-11T10:00", desc: "Extrair relatório do ponto eletrônico", priority: "medium"},
+                {id: 106, sprintId: 2, title: "Validação de Atestados", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-04-12", end: "2026-04-15", check: "2026-04-14T11:00", desc: "Conferir atestados médicos do mês", priority: "low"},
+                {id: 107, sprintId: 3, title: "Cálculo de Férias", resp: "Emanuele Cristina Ribeiro Oliveira", status: "done", start: "2026-03-20", end: "2026-03-25", check: "2026-03-22T15:00", desc: "Calcular férias proporcionais e integrais", priority: "high"},
+                {id: 108, sprintId: 3, title: "Envio de Holerites", resp: "Daniela Santos Napolitano", status: "done", start: "2026-03-28", end: "2026-03-30", check: "2026-03-29T09:00", desc: "Disparar e-mails com os holerites", priority: "medium"},
+                {id: 109, sprintId: null, title: "Pesquisa de Clima", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-04-20", end: "2026-04-30", check: "2026-04-25T14:00", desc: "Elaborar questionário de clima organizacional", priority: "medium"},
+                {id: 110, sprintId: null, title: "Arquivo Morto", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-05-01", end: "2026-05-15", check: "2026-05-05T10:00", desc: "Organizar pastas de ex-colaboradores", priority: "low"},
+                {id: 111, sprintId: null, title: "Revisão de Benefícios", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-04-15", end: "2026-04-20", check: "2026-04-18T16:00", desc: "Cotar novos planos de saúde e odonto", priority: "high"},
+                {id: 112, sprintId: null, title: "Entrevistas Desligamento", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-04-05", end: "2026-04-10", check: "2026-04-07T11:00", desc: "Agendar entrevistas com colaboradores que saíram", priority: "medium"},
+                {id: 113, sprintId: 4, title: "Atualização de Endereços", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-05-02", end: "2026-05-10", check: "2026-05-05T10:00", desc: "Solicitar comprovantes de residência atualizados", priority: "medium"},
+                {id: 114, sprintId: 4, title: "Revisão de Dependentes", resp: "Daniela Santos Napolitano", status: "doing", start: "2026-05-03", end: "2026-05-12", check: "2026-05-08T14:00", desc: "Atualizar base de dependentes para IR", priority: "high", health: "yellow"},
+                {id: 115, sprintId: 5, title: "Formulários de Avaliação", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-06-01", end: "2026-06-05", check: "2026-06-02T09:00", desc: "Preparar formulários na plataforma", priority: "high"},
+                {id: 116, sprintId: 5, title: "Comunicado Interno", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-06-05", end: "2026-06-08", check: "2026-06-06T15:00", desc: "Disparar e-mail sobre o ciclo de avaliação", priority: "medium"},
+                {id: 117, sprintId: 6, title: "Levantamento de Necessidades", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-07-01", end: "2026-07-10", check: "2026-07-05T11:00", desc: "Pesquisa LNT com gestores", priority: "high"},
+                {id: 118, sprintId: 6, title: "Orçamento de Cursos", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-07-10", end: "2026-07-20", check: "2026-07-15T16:00", desc: "Cotar treinamentos in-company", priority: "medium"},
+                {id: 119, sprintId: null, title: "Renovação PPRA/PCMSO", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-08-01", end: "2026-08-15", check: "2026-08-10T10:00", desc: "Agendar com a clínica de saúde ocupacional", priority: "high"},
+                {id: 120, sprintId: null, title: "Festa de Fim de Ano", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-10-01", end: "2026-11-30", check: "2026-10-15T14:00", desc: "Iniciar orçamentos para confraternização", priority: "low"},
+                {id: 121, sprintId: 8, title: "Triagem de Currículos Dev", resp: "Emanuele Cristina Ribeiro Oliveira", status: "done", start: "2026-04-01", end: "2026-04-03", check: "2026-04-02T10:00", desc: "Triar currículos para vagas de TI", priority: "high"},
+                {id: 122, sprintId: 8, title: "Entrevistas Dev Sênior", resp: "Daniela Santos Napolitano", status: "doing", start: "2026-04-04", end: "2026-04-10", check: "2026-04-05T14:00", desc: "Realizar entrevistas técnicas e fit cultural", priority: "high"},
+                {id: 123, sprintId: 8, title: "Testes Técnicos TI", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-04-10", end: "2026-04-15", check: "2026-04-11T09:00", desc: "Enviar plataforma de testes para finalistas", priority: "medium"},
+                {id: 124, sprintId: 8, title: "Proposta Salarial TI", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-04-16", end: "2026-04-18", check: "2026-04-16T11:00", desc: "Elaborar propostas para aprovados", priority: "high"},
+                {id: 125, sprintId: 8, title: "Feedback Negativo", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-04-18", end: "2026-04-20", check: "2026-04-19T15:00", desc: "Enviar feedback para não aprovados", priority: "low"},
+                {id: 126, sprintId: 8, title: "Alinhamento de Vagas Tech", resp: "Daniela Santos Napolitano", status: "done", start: "2026-03-25", end: "2026-03-30", check: "2026-03-28T10:00", desc: "Reunião de kick-off com gestores", priority: "medium"},
+                {id: 127, sprintId: 8, title: "Divulgação Vagas LinkedIn", resp: "Emanuele Cristina Ribeiro Oliveira", status: "done", start: "2026-03-30", end: "2026-04-01", check: "2026-03-31T14:00", desc: "Postagem das vagas nas redes sociais", priority: "medium"},
+                {id: 128, sprintId: 8, title: "Entrevistas QA Pleno", resp: "Daniela Santos Napolitano", status: "doing", start: "2026-04-05", end: "2026-04-12", check: "2026-04-08T10:00", desc: "Agendar e realizar entrevistas QA", priority: "high"},
+                {id: 129, sprintId: 8, title: "Busca Ativa de Devs", resp: "Emanuele Cristina Ribeiro Oliveira", status: "doing", start: "2026-04-01", end: "2026-04-15", check: "2026-04-05T16:00", desc: "Hunting de candidatos no LinkedIn", priority: "high"},
+                {id: 130, sprintId: 9, title: "Mapeamento Filiais", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-05-01", end: "2026-05-05", check: "2026-05-02T10:00", desc: "Levantar necessidades de integração", priority: "medium"},
+                {id: 131, sprintId: 9, title: "Material de Integração", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-05-05", end: "2026-05-15", check: "2026-05-10T14:00", desc: "Atualizar slides de apresentação", priority: "high"},
+                {id: 132, sprintId: 9, title: "Logística Viagens RH", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-05-10", end: "2026-05-20", check: "2026-05-15T09:00", desc: "Comprar passagens para integração presencial", priority: "medium"},
+                {id: 133, sprintId: 9, title: "Acessos Sistemas Filiais", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-05-15", end: "2026-05-25", check: "2026-05-20T11:00", desc: "Garantir acesso aos sistemas padrão", priority: "high"},
+                {id: 134, sprintId: 9, title: "Kit Boas Vindas", resp: "Daniela Santos Napolitano", status: "blocked", start: "2026-05-01", end: "2026-05-10", check: "2026-05-05T15:00", desc: "Aguardando fornecedor dos brindes", priority: "medium", health: "red"},
+                {id: 135, sprintId: 9, title: "Agendamento Integração", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-05-20", end: "2026-05-22", check: "2026-05-21T10:00", desc: "Enviar invites para os novos colaboradores", priority: "low"},
+                {id: 136, sprintId: 9, title: "Treinamento Institucional", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-05-25", end: "2026-05-26", check: "2026-05-25T14:00", desc: "Conduzir apresentação online", priority: "high"},
+                {id: 137, sprintId: 10, title: "Lançamento Variáveis Abril", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-04-15", end: "2026-04-20", check: "2026-04-18T10:00", desc: "Inserir horas extras e comissões", priority: "high"},
+                {id: 138, sprintId: 10, title: "Conferência de Ponto Abril", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-04-10", end: "2026-04-15", check: "2026-04-12T14:00", desc: "Apurar espelhos de ponto", priority: "high"},
+                {id: 139, sprintId: 10, title: "Cálculo de Adiantamento", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-04-10", end: "2026-04-12", check: "2026-04-11T16:00", desc: "Gerar folha de adiantamento salarial", priority: "medium"},
+                {id: 140, sprintId: 10, title: "Fechamento Encargos", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-05-01", end: "2026-05-05", check: "2026-05-03T10:00", desc: "Gerar guias FGTS e INSS", priority: "high"},
+                {id: 141, sprintId: 10, title: "Envio eSocial Abril", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-05-10", end: "2026-05-14", check: "2026-05-12T11:00", desc: "Transmitir eventos mensais", priority: "high"},
+                {id: 142, sprintId: 10, title: "Auditoria Rescisões Abril", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-04-25", end: "2026-04-30", check: "2026-04-28T15:00", desc: "Auditoria nas TRCTs do mês", priority: "medium"},
+                {id: 143, sprintId: 10, title: "Provisão Férias/13º", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-04-28", end: "2026-04-30", check: "2026-04-29T10:00", desc: "Relatório de provisões contábeis", priority: "medium"},
+                {id: 144, sprintId: 10, title: "Cálculo Folha Final", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-04-20", end: "2026-04-25", check: "2026-04-23T14:00", desc: "Rodar cálculo definitivo da folha", priority: "high"},
+                {id: 145, sprintId: 11, title: "Fechamento Folha Janeiro", resp: "Emanuele Cristina Ribeiro Oliveira", status: "done", start: "2026-01-20", end: "2026-01-25", check: "2026-01-24T10:00", desc: "Cálculo concluído", priority: "high"},
+                {id: 146, sprintId: 11, title: "Encargos Janeiro", resp: "Daniela Santos Napolitano", status: "done", start: "2026-02-01", end: "2026-02-05", check: "2026-02-03T14:00", desc: "Guias pagas", priority: "high"},
+                {id: 147, sprintId: 11, title: "eSocial Janeiro", resp: "Emanuele Cristina Ribeiro Oliveira", status: "done", start: "2026-02-10", end: "2026-02-14", check: "2026-02-12T11:00", desc: "Eventos transmitidos", priority: "high"},
+                {id: 148, sprintId: 11, title: "Relatório Dirf", resp: "Daniela Santos Napolitano", status: "done", start: "2026-02-15", end: "2026-02-28", check: "2026-02-20T15:00", desc: "Validação anual", priority: "medium"},
+                {id: 149, sprintId: 11, title: "Envio Informes Rendimento", resp: "Emanuele Cristina Ribeiro Oliveira", status: "done", start: "2026-02-25", end: "2026-02-28", check: "2026-02-27T10:00", desc: "Disparados via e-mail", priority: "high"},
+                {id: 150, sprintId: 12, title: "Definição Tema SIPAT", resp: "Daniela Santos Napolitano", status: "done", start: "2026-03-01", end: "2026-03-10", check: "2026-03-05T14:00", desc: "Tema: Saúde Mental", priority: "medium"},
+                {id: 151, sprintId: 12, title: "Cotação Palestrantes", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-04-15", end: "2026-04-30", check: "2026-04-20T10:00", desc: "Buscar psicólogos e ergonomistas", priority: "high"},
+                {id: 152, sprintId: 12, title: "Reserva Auditório", resp: "Daniela Santos Napolitano", status: "doing", start: "2026-04-01", end: "2026-04-10", check: "2026-04-05T11:00", desc: "Verificar disponibilidade de salas", priority: "medium"},
+                {id: 153, sprintId: 12, title: "Compra Brindes SIPAT", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-05-01", end: "2026-05-15", check: "2026-05-10T14:00", desc: "Squeezes e camisetas", priority: "medium"},
+                {id: 154, sprintId: 12, title: "Cronograma de Atividades", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-05-15", end: "2026-05-20", check: "2026-05-18T10:00", desc: "Montar agenda da semana", priority: "high"},
+                {id: 155, sprintId: 12, title: "Comunicação Interna SIPAT", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-06-01", end: "2026-06-10", check: "2026-06-05T15:00", desc: "Criar banners e e-mails", priority: "high"},
+                {id: 156, sprintId: 12, title: "Coffee Break SIPAT", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-05-20", end: "2026-05-30", check: "2026-05-25T11:00", desc: "Orçar lanches para os 5 dias", priority: "low"},
+                {id: 157, sprintId: 12, title: "Sorteios SIPAT", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-06-10", end: "2026-06-15", check: "2026-06-12T14:00", desc: "Organizar mecânica dos sorteios", priority: "low"},
+                {id: 158, sprintId: 12, title: "Certificados SIPAT", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-06-20", end: "2026-06-25", check: "2026-06-22T10:00", desc: "Gerar certificados de participação", priority: "low"},
+                {id: 159, sprintId: null, title: "Pesquisa de Benefícios", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-07-01", end: "2026-07-15", check: "2026-07-10T14:00", desc: "Pesquisar Gympass e TotalPass", priority: "medium"},
+                {id: 160, sprintId: null, title: "Atualização Política Home Office", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-08-01", end: "2026-08-20", check: "2026-08-15T10:00", desc: "Revisar regras de auxílio internet", priority: "high"},
+                {id: 161, sprintId: null, title: "Renegociação Seguro Vida", resp: "Emanuele Cristina Ribeiro Oliveira", status: "blocked", start: "2026-05-01", end: "2026-05-30", check: "2026-05-20T11:00", desc: "Aguardando corretora", priority: "high", health: "red"},
+                {id: 162, sprintId: null, title: "Programa Jovem Aprendiz", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-09-01", end: "2026-09-30", check: "2026-09-15T14:00", desc: "Parceria com CIEE", priority: "medium"},
+                {id: 163, sprintId: null, title: "Mapeamento PCDs", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-08-01", end: "2026-08-15", check: "2026-08-10T10:00", desc: "Verificar cumprimento de cota", priority: "high"},
+                {id: 164, sprintId: null, title: "Campanha Outubro Rosa", resp: "Daniela Santos Napolitano", status: "todo", start: "2026-09-15", end: "2026-09-30", check: "2026-09-25T15:00", desc: "Planejar ações de prevenção", priority: "medium"},
+                {id: 165, sprintId: null, title: "Campanha Novembro Azul", resp: "Emanuele Cristina Ribeiro Oliveira", status: "todo", start: "2026-10-15", end: "2026-10-30", check: "2026-10-25T10:00", desc: "Planejar ações de saúde masculina", priority: "medium"},
+                {id: 166, sprintId: 13, title: "Levantamento de Processos", resp: "Emanuele Cristina Ribeiro Oliveira", status: "doing", start: "2026-02-01", end: "2026-02-15", check: "2026-02-10T10:00", desc: "Mapear processos antigos", priority: "high"},
+                {id: 167, sprintId: 13, title: "Envio de Documentação", resp: "Daniela Santos Napolitano", status: "blocked", start: "2026-02-10", end: "2026-02-20", check: "2026-02-15T14:00", desc: "Aguardando assinatura", priority: "high", health: "red"},
+                {id: 168, sprintId: 14, title: "Elaborar Perguntas", resp: "Emanuele Cristina Ribeiro Oliveira", status: "done", start: "2026-03-25", end: "2026-03-28", check: "2026-03-27T10:00", desc: "Definir questionário", priority: "medium"},
+                {id: 169, sprintId: 14, title: "Disparar Forms", resp: "Daniela Santos Napolitano", status: "doing", start: "2026-03-29", end: "2026-04-04", check: "2026-04-02T14:00", desc: "Enviar para todos os colaboradores", priority: "high"}
+            ];
+
+            // Geração de Volume Adicional (150 Atividades)
+            const extraTitles = [
+                "Reunião de Alinhamento", "Documentação de Processos", "Análise de Relatórios",
+                "Auditoria Interna", "Atualização de Planilhas", "Levantamento de Requisitos",
+                "Treinamento de Equipe", "Revisão de Metas", "Feedback Mensal", "Planejamento Estratégico",
+                "Organização de Arquivos", "Contato com Fornecedores", "Pesquisa de Mercado", "Aprovação de Orçamento"
+            ];
+            
+            let nextId = 200;
+            for(let i = 0; i < 150; i++) {
+                const sprint = sprints[Math.floor(Math.random() * sprints.length)];
+                const isBacklog = Math.random() > 0.8;
+                
+                const startMonth = Math.floor(Math.random() * 5) + 1; // Jan a Mai
+                const startDay = Math.floor(Math.random() * 28) + 1;
+                const endDay = startDay + Math.floor(Math.random() * 5) + 1;
+                
+                const startStr = `2026-${String(startMonth).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+                const endStr = endDay > 28 ? `2026-${String(startMonth+1).padStart(2, '0')}-05` : `2026-${String(startMonth).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+                
+                tasks.push({
+                    id: nextId++,
+                    sprintId: isBacklog ? null : sprint.id,
+                    title: extraTitles[Math.floor(Math.random() * extraTitles.length)] + " " + Math.floor(Math.random() * 1000),
+                    resp: "Random", // Será substituído no forEach
+                    status: "Random", // Será substituído no forEach
+                    start: startStr,
+                    end: endStr,
+                    check: `${startStr}T10:00`,
+                    desc: "Atividade gerada automaticamente para compor a massa de dados do sistema.",
+                    priority: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
+                    health: ['green', 'green', 'green', 'yellow', 'red'][Math.floor(Math.random() * 5)]
+                });
+            }
+
+            tasks.forEach(t => {
+                t.resp = responsibles[Math.floor(Math.random() * responsibles.length)];
+                t.status = statuses[Math.floor(Math.random() * statuses.length)];
+            });
+
+            logs = [
+                { rawDate: new Date().toISOString(), date: new Date().toLocaleString('pt-BR'), user: "Juliana Castro", action: "Mudança de Status", details: "Atividade 'Revisão de Dependentes' movida para 'Em Andamento'.", taskId: 114, sprintId: 4 },
+                { rawDate: new Date().toISOString(), date: new Date().toLocaleString('pt-BR'), user: "Pedro Ribeiro", action: "Conclusão", details: "Atividade 'Cálculo de Férias' finalizada.", taskId: 107, sprintId: 3 },
+                { rawDate: new Date().toISOString(), date: new Date().toLocaleString('pt-BR'), user: "Sistema", action: "Atualização", details: "Sprint '#11 - Fechamento Março' marcada como Concluída.", taskId: null, sprintId: 3 },
+                { rawDate: new Date().toISOString(), date: new Date().toLocaleString('pt-BR'), user: "Ana Pereira", action: "Bloqueio", details: "Atividade 'Assinatura de Contratos' marcada como Bloqueada.", taskId: 104, sprintId: 1 },
+                { rawDate: new Date().toISOString(), date: new Date().toLocaleString('pt-BR'), user: "Sistema", action: "Carga Inicial", details: "Sistema GTicket v18.0 inicializado com sucesso.", taskId: null, sprintId: null }
+            ];
+
+            // --- NOVO: GERANDO HISTÓRICO DE ALTERAÇÃO DE DATAS PARA OS GRÁFICOS ---
+            tasks.forEach(t => {
+                // Adiciona histórico de alteração de datas em cerca de 70% das tarefas
+                if (Math.random() > 0.3) {
+                    const numChanges = Math.floor(Math.random() * 4) + 1; // 1 a 4 alterações de prazo
+                    let baseEnd = new Date(t.end);
+                    
+                    for (let c = 0; c < numChanges; c++) {
+                        let oldDate = new Date(baseEnd);
+                        oldDate.setDate(oldDate.getDate() - (Math.floor(Math.random() * 3) + 1));
+                        
+                        let oldDateStr = oldDate.toISOString().split('T')[0];
+                        let newDateStr = baseEnd.toISOString().split('T')[0];
+                        const logRawDate = new Date(Date.now() - (Math.random() * 864000000));
+
+                        logs.push({
+                            rawDate: logRawDate.toISOString(),
+                            date: logRawDate.toLocaleString('pt-BR'),
+                            user: responsibles[Math.floor(Math.random() * responsibles.length)],
+                            action: "Edição de Tarefa",
+                            details: `Atividade "${t.title}": Alterou Entrega ('${oldDateStr}' -> '${newDateStr}')`,
+                            taskId: t.id,
+                            sprintId: t.sprintId
+                        });
+                        baseEnd = oldDate;
+                    }
+                }
+            });
+
+            // Ordenar todos os logs do mais recente para o mais antigo (padrão da auditoria)
+            logs.sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate));
+
+            save();
+        }
+    }
+
+    function addLog(user, action, details, taskId = null, sprintId = null) {
+        logs.unshift({ rawDate: new Date().toISOString(), date: new Date().toLocaleString('pt-BR'), user: user, action: action, details: details, taskId: taskId, sprintId: sprintId });
+        save();
+    }
+
+    function getCurrentUser() {
+        const sel = document.getElementById('logged-user');
+        return sel ? sel.options[sel.selectedIndex].text : 'Sistema';
+    }
+
+    // --- NAVEGAÇÃO ---
+    function showPage(id) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+        document.getElementById('page-' + id).classList.add('active-page');
+        if(id === 'dash') renderDashboard();
+        if(id === 'prod') renderProd();
+        if(id === 'backlog') { populateBacklogFilters(); renderBacklog(); }
+        if(id === 'sprints') renderSprints();
+        if(id === 'board') renderBoard();
+        if(id === 'logs') { populateLogFilters(); renderLogs(); }
+    }
+
+    function showAlert(title, msg) {
+        const div = document.getElementById('custom-alert');
+        document.getElementById('alert-title').innerText = title;
+        document.getElementById('alert-msg').innerText = msg;
+        div.style.display = 'block';
+        setTimeout(() => div.style.display = 'none', 3000);
+    }
+
+    function checkRemindersOnLoad() {
+        const today = new Date().toISOString().split('T')[0];
+        const reminders = tasks.filter(t => t.check && t.check.startsWith(today));
+
+        if (reminders.length > 0) {
+            const body = document.getElementById('whatsapp-body');
+            body.innerHTML = '<div class="chat-bubble chat-bubble-received">Olá! Detectei alguns lembretes de acompanhamento para hoje.</div>';
+            
+            reminders.forEach(t => {
+                const time = t.check.split('T')[1] || 'o dia todo';
+                body.innerHTML += `
+                    <div class="chat-bubble chat-bubble-received">
+                        <strong>Lembrete: ${t.title}</strong><br>
+                        Responsável: ${t.resp.split(' ')[0]}<br>
+                        Horário: ${time}
+                        <hr style="margin: 8px 0; border: 0; border-top: 1px solid #ddd;">
+                        <a href="javascript:void(0)" style="color: var(--caixa-light); text-decoration: none; font-weight: bold; display: flex; align-items: center; gap: 6px;" onclick="closeWhatsAppModal(); openMobileTracking(${t.id})"><i class="fa-solid fa-up-right-from-square"></i> Fazer Check-in</a>
+                    </div>`;
+            });
+            document.getElementById('whatsapp-modal-container').style.display = 'flex';
+        }
+    }
+
+    function closeModal() { document.getElementById('modal-container').style.display = 'none'; }
+
+    // --- DASHBOARD ---
+    function renderDashboard() {
+        populateDashFilters();
+        applyDashFilters();
+    }
+
+    function populateDashFilters() {
+        const spFilter = document.getElementById('dash-filter-sprint');
+        const currentSp = spFilter.value;
+        spFilter.innerHTML = '<option value="Todos">Todas</option>' + sprints.map(s => `<option value="${s.id}">${s.title}</option>`).join('');
+        spFilter.value = currentSp || 'Todos';
+
+        const tkFilter = document.getElementById('dash-filter-task');
+        const currentTk = tkFilter.value;
+        tkFilter.innerHTML = '<option value="Todos">Todas</option>' + tasks.map(t => `<option value="${t.id}">${t.title}</option>`).join('');
+        tkFilter.value = currentTk || 'Todos';
+    }
+
+    function applyDashFilters() {
+        const start = document.getElementById('dash-filter-start').value;
+        const end = document.getElementById('dash-filter-end').value;
+        const sprint = document.getElementById('dash-filter-sprint').value;
+        const task = document.getElementById('dash-filter-task').value;
+        const resp = document.getElementById('dash-filter-resp').value;
+
+        let filteredTasks = tasks.filter(t => {
+            let match = true;
+            if (start && t.start < start) match = false;
+            if (end && t.end > end) match = false;
+            if (sprint !== "Todos" && t.sprintId != sprint) match = false;
+            if (task !== "Todos" && t.id != task) match = false;
+            if (resp !== "Todos" && t.resp !== resp) match = false;
+            return match;
+        });
+
+        document.getElementById('count-sprints').innerText = sprints.length;
+        document.getElementById('count-tasks').innerText = filteredTasks.length;
+        
+        const list = document.getElementById('checkpoint-today-list');
+        list.innerHTML = filteredTasks.filter(t => t.check && t.check.includes("2026-04-01")).map(t => `
+            <div class="check-item">
+                <div><strong>${t.title}</strong><br><small>${t.resp.split(' ')[0]} - ${t.check.split('T')[1] || ''}h</small></div>
+                <button class="btn btn-primary" style="padding:5px" onclick="openMobileTracking(${t.id})">Check-in</button>
+            </div>
+        `).join('');
+        if (list.innerHTML === '') list.innerHTML = '<p style="color:#666; font-size:0.9rem">Nenhum acompanhamento para hoje nos filtros selecionados.</p>';
+
+        renderCharts(filteredTasks);
+        renderHealthHeatmap(filteredTasks);
+    }
+
+    function clearDashFilters() {
+        document.getElementById('dash-filter-start').value = '';
+        document.getElementById('dash-filter-end').value = '';
+        document.getElementById('dash-filter-sprint').value = 'Todos';
+        document.getElementById('dash-filter-task').value = 'Todos';
+        document.getElementById('dash-filter-resp').value = 'Todos';
+        applyDashFilters();
+    }
+
+    function populateLogFilters() {
+        const spFilter = document.getElementById('log-filter-sprint');
+        const currentSp = spFilter.value;
+        spFilter.innerHTML = '<option value="Todos">Todas</option>' + sprints.map(s => `<option value="${s.id}">${s.title}</option>`).join('');
+        spFilter.value = currentSp || 'Todos';
+
+        const tkFilter = document.getElementById('log-filter-task');
+        const currentTk = tkFilter.value;
+        tkFilter.innerHTML = '<option value="Todos">Todas</option>' + tasks.map(t => `<option value="${t.id}">${t.title}</option>`).join('');
+        tkFilter.value = currentTk || 'Todos';
+    }
+
+    function clearLogFilters() {
+        document.getElementById('log-filter-start').value = '';
+        document.getElementById('log-filter-end').value = '';
+        document.getElementById('log-filter-sprint').value = 'Todos';
+        document.getElementById('log-filter-task').value = 'Todos';
+        document.getElementById('log-filter-user').value = 'Todos';
+        renderLogs();
+    }
+
+    function renderLogs() {
+        const tbody = document.getElementById('log-tbody');
+        if(!tbody) return;
+
+        const start = document.getElementById('log-filter-start')?.value;
+        const end = document.getElementById('log-filter-end')?.value;
+        const sprint = document.getElementById('log-filter-sprint')?.value || 'Todos';
+        const task = document.getElementById('log-filter-task')?.value || 'Todos';
+        const user = document.getElementById('log-filter-user')?.value || 'Todos';
+
+        let filteredLogs = logs.filter(l => {
+            let match = true;
+            if (start && l.rawDate && l.rawDate.split('T')[0] < start) match = false;
+            if (end && l.rawDate && l.rawDate.split('T')[0] > end) match = false;
+            if (sprint !== "Todos" && l.sprintId != sprint) match = false;
+            if (task !== "Todos" && l.taskId != task) match = false;
+            if (user !== "Todos" && !l.user.includes(user.split(' ')[0])) match = false;
+            return match;
+        });
+
+        tbody.innerHTML = filteredLogs.map(l => `<tr><td style="color: #666; font-size: 0.8rem">${l.date}</td><td><strong>${l.user}</strong></td><td>${l.action}</td><td>${l.details}</td></tr>`).join('');
+    }
+
+    function renderCharts(fTasks = tasks) {
+        const filterResp = document.getElementById('dash-filter-resp').value;
+        let labels = ['Emanuele', 'Daniela'];
+        if (filterResp !== 'Todos') {
+            labels = [filterResp.split(' ')[0]];
+        }
+
+        const cadastradasData = labels.map(nome => fTasks.filter(t => t.resp.includes(nome)).length);
+        const concluidasData = labels.map(nome => fTasks.filter(t => t.resp.includes(nome) && t.status === 'done').length);
+
+        const totalCadastradas = cadastradasData.reduce((a, b) => a + b, 0);
+        const totalConcluidas = concluidasData.reduce((a, b) => a + b, 0);
+
+        const ctxHeat = document.getElementById('heatChart').getContext('2d');
+        if(window.hChart) window.hChart.destroy();
+        window.hChart = new Chart(ctxHeat, {
+            type: 'pie',
+            data: { 
+                labels: ['Cadastradas (Escopo)', 'Concluídas (Entrega)'], 
+                datasets: [
+                    { data: [totalCadastradas, totalConcluidas], backgroundColor: ['#002766', '#28a745'] }
+                ] 
+            }
+        });
+
+        const ctxDate = document.getElementById('dateChart').getContext('2d');
+        if(window.dChart) window.dChart.destroy();
+        window.dChart = new Chart(ctxDate, {
+            type: 'line',
+            data: { labels: ['Semana 1', 'Semana 2', 'Semana 3'], datasets: [{ label: 'Alterações de Prazo', data: [2, 5, 1], borderColor: '#d32f2f', tension: 0.4 }] }
+        });
+
+        const greenTasks = fTasks.filter(t => (t.health || 'green') === 'green').length;
+        const yellowTasks = fTasks.filter(t => t.health === 'yellow').length;
+        const redTasks = fTasks.filter(t => t.health === 'red').length;
+
+        const ctxTaskHealth = document.getElementById('taskHealthChart').getContext('2d');
+        if(window.thChart) window.thChart.destroy();
+        window.thChart = new Chart(ctxTaskHealth, {
+            type: 'doughnut',
+            data: { 
+                labels: ['Verde (Saudável)', 'Amarelo (Atenção)', 'Vermelho (Crítico)'], 
+                datasets: [{ data: [greenTasks, yellowTasks, redTasks], backgroundColor: ['#28a745', '#fbc02d', '#d32f2f'] }] 
+            },
+            options: { cutout: '60%' }
+        });
+    }
+
+    function renderHealthHeatmap(fTasks = tasks) {
+        const container = document.getElementById('health-heatmap-container');
+        const responsibles = [
+            "Emanuele Cristina Ribeiro Oliveira", "Daniela Santos Napolitano", "Ana Pereira", "Bruno Costa", "Carla Dias", 
+            "Eduardo Lima", "Fernanda Martins", "Gustavo Almeida", "Helena Rocha", "Igor Barbosa", "Juliana Castro", 
+            "Lucas Gomes", "Mariana Ferreira", "Nícolas Azevedo", "Olívia Sousa", "Pedro Ribeiro", "Rafaela Santos"
+        ];
+        const today = new Date().toISOString().split('T')[0];
+
+        let html = `<div class="health-heatmap">`;
+        // Header
+        html += `<div class="health-heatmap-row">
+                    <div class="health-heatmap-cell health-heatmap-header">Responsável</div>
+                    <div class="health-heatmap-cell health-heatmap-header">Visão do Responsável</div>
+                    <div class="health-heatmap-cell health-heatmap-header">Visão da Máquina</div>
+                 </div>`;
+
+        responsibles.forEach(r => {
+            const rTasks = fTasks.filter(t => t.resp === r);
+            const rSprintIds = [...new Set(rTasks.map(t => t.sprintId).filter(id => id !== null))];
+            const rSprints = sprints.filter(s => rSprintIds.includes(s.id));
+
+            // Lógica Visão do Responsável
+            let userVision = 'green';
+            if (rSprints.some(s => s.health === 'red')) userVision = 'red';
+            else if (rSprints.some(s => s.health === 'yellow')) userVision = 'yellow';
+
+            // Lógica Visão da Máquina
+            let machineVision = 'green';
+            if (rSprints.some(s => s.end < today && s.status !== 'done')) {
+                machineVision = 'red'; // Atrasada
+            } else if (rSprints.some(s => s.status === 'doing' && s.delayed)) {
+                machineVision = 'yellow'; // Em andamento com risco
+            }
+
+            html += `<div class="health-heatmap-row">
+                        <div class="health-heatmap-cell"><strong>${r.split(' ')[0]}</strong></div>
+                        <div class="health-heatmap-cell">
+                            <div class="health-indicator health-${userVision}" title="Visão do Responsável: ${userVision}"></div>
+                        </div>
+                        <div class="health-heatmap-cell">
+                            <div class="health-indicator health-${machineVision}" title="Visão da Máquina: ${machineVision}"></div>
+                        </div>
+                     </div>`;
+        });
+
+        html += `</div>`;
+        container.innerHTML = html;
+    }
+
+    function closeWhatsAppModal() { document.getElementById('whatsapp-modal-container').style.display = 'none'; }
+
+    // --- PRODUTIVIDADE ---
+    function renderProd() {
+        const grid = document.getElementById('prod-grid');
+        const responsibles = [...new Set(tasks.map(t => t.resp))];
+        const today = new Date().toISOString().split('T')[0];
+
+        grid.innerHTML = responsibles.map(r => {
+            const rTasks = tasks.filter(t => t.resp === r);
+            const total = rTasks.length;
+            const doing = rTasks.filter(t => t.status === 'doing').length;
+            const done = rTasks.filter(t => t.status === 'done').length;
+            const delayed = rTasks.filter(t => t.end < today && t.status !== 'done').length;
+            const shortName = r.split(' ').slice(0, 2).join(' ');
+
+            return `
+                <div class="prod-card">
+                    <h3><i class="fa-solid fa-user-circle"></i> ${shortName}</h3>
+                    <div class="prod-stats">
+                        <div class="prod-stat-item total"><strong>${total}</strong><br><small>Atribuídas</small></div>
+                        <div class="prod-stat-item doing"><strong>${doing}</strong><br><small>Em Andamento</small></div>
+                        <div class="prod-stat-item done"><strong>${done}</strong><br><small>Concluídas</small></div>
+                        <div class="prod-stat-item delayed"><strong><span style="color:var(--caixa-red)">${delayed}</span></strong><br><small>Atrasadas</small></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // --- BACKLOG & TAREFAS ---
+    function populateBacklogFilters() {
+        const spFilter = document.getElementById('backlog-filter-sprint');
+        const currentSp = spFilter.value;
+        spFilter.innerHTML = '<option value="Todos">Todas</option>' + sprints.map(s => `<option value="${s.id}">${s.title}</option>`).join('');
+        spFilter.value = currentSp || 'Todos';
+
+        const tkFilter = document.getElementById('backlog-filter-task');
+        const currentTk = tkFilter.value;
+        tkFilter.innerHTML = '<option value="Todos">Todas</option>' + tasks.map(t => `<option value="${t.id}">${t.title}</option>`).join('');
+        tkFilter.value = currentTk || 'Todos';
+    }
+
+    function clearBacklogFilters() {
+        document.getElementById('backlog-filter-start').value = '';
+        document.getElementById('backlog-filter-end').value = '';
+        document.getElementById('backlog-filter-sprint').value = 'Todos';
+        document.getElementById('backlog-filter-task').value = 'Todos';
+        document.getElementById('backlog-filter-status').value = 'Todos';
+        document.getElementById('backlog-filter-health').value = 'Todos';
+        renderBacklog();
+    }
+
+    function renderBacklog() {
+        const grid = document.getElementById('backlog-grid');
+        const start = document.getElementById('backlog-filter-start')?.value;
+        const end = document.getElementById('backlog-filter-end')?.value;
+        const sprint = document.getElementById('backlog-filter-sprint')?.value || 'Todos';
+        const task = document.getElementById('backlog-filter-task')?.value || 'Todos';
+        const status = document.getElementById('backlog-filter-status')?.value || 'Todos';
+        const health = document.getElementById('backlog-filter-health')?.value || 'Todos';
+
+        let filteredTasks = tasks.filter(t => {
+            let match = true;
+            if (start && t.start < start) match = false;
+            if (end && t.end > end) match = false;
+            if (sprint !== "Todos" && t.sprintId != sprint) match = false;
+            if (task !== "Todos" && t.id != task) match = false;
+            if (status !== "Todos" && t.status !== status) match = false;
+            if (health !== "Todos" && (t.health || 'green') !== health) match = false;
+            return match;
+        });
+
+        grid.innerHTML = filteredTasks.map(t => `
+            <div class="backlog-card priority-${t.priority || 'low'}">
+                <div class="backlog-card-header">
+                    <h3 class="backlog-card-title">${t.title}</h3>
+                    <span style="font-size:0.8rem; padding: 3px 8px; background: #eee; border-radius: 12px;">${t.priority === 'high' ? 'Alta' : t.priority === 'medium' ? 'Média' : 'Baixa'}</span>
+                </div>
+                <div class="backlog-card-desc">${t.desc}</div>
+                <div class="backlog-card-meta">
+                    <strong>Início:</strong> ${t.start} <br>
+                    <strong>Fim:</strong> ${t.end} <br>
+                    <strong>Responsável:</strong> ${t.resp.split(' ')[0]} <br>
+                    <strong>Sprint:</strong> ${t.sprintId ? sprints.find(s=>s.id == t.sprintId)?.title : 'Nenhuma'}
+                </div>
+                <div class="backlog-card-actions">
+                    <button class="btn btn-primary" style="flex: 1; padding: 8px; justify-content: center;" onclick="openTaskPage(${t.id})"><i class="fa-solid fa-pen"></i> Detalhes</button>
+                    <button class="btn btn-success" style="flex: 1; padding: 8px; justify-content: center;" onclick="assignToSprint(${t.id})"><i class="fa-solid fa-link"></i> Vincular</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function openTicketModal() {
+        const responsibles = [
+            "Emanuele Cristina Ribeiro Oliveira", "Daniela Santos Napolitano", "Ana Pereira", "Bruno Costa", "Carla Dias", 
+            "Eduardo Lima", "Fernanda Martins", "Gustavo Almeida", "Helena Rocha", "Igor Barbosa", "Juliana Castro", 
+            "Lucas Gomes", "Mariana Ferreira", "Nícolas Azevedo", "Olívia Sousa", "Pedro Ribeiro", "Rafaela Santos"
+        ];
+        const body = document.getElementById('modal-body');
+        document.getElementById('modal-title').innerText = "Novo Ticket / Atividade";
+        body.innerHTML = `
+            <label>Nome da Tarefa</label><input type="text" id="mt-title">
+            <label>Descrição</label><textarea id="mt-desc"></textarea>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px">
+                <div><label>Data Início</label><input type="date" id="mt-start"></div>
+                <div><label>Previsão Entrega</label><input type="date" id="mt-end"></div>
+                <div><label>Prioridade</label><select id="mt-priority"><option value="low">Baixa</option><option value="medium">Média</option><option value="high">Alta</option></select></div>
+                <div><label>Saúde (Mapa)</label><select id="mt-health"><option value="green">Verde</option><option value="yellow">Amarela</option><option value="red">Vermelha</option></select></div>
+            </div>
+            <label>Data Acompanhamento</label><input type="datetime-local" id="mt-check">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
+                <div>
+                    <label>Responsável</label>
+                    <select id="mt-resp">${responsibles.map(r => `<option>${r}</option>`).join('')}</select>
+                </div>
+                <div>
+                    <label>Vincular a Sprint</label>
+                    <select id="mt-sprint">
+                        <option value="">Nenhuma (Backlog)</option>
+                        ${sprints.map(s => `<option value="${s.id}">${s.title}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+            <label>Anexos (Imagens e Documentos - Lote/Simultâneo)</label>
+            <input type="file" multiple id="mt-files" style="padding:10px; border: 1px dashed var(--caixa-blue)">
+            <button class="btn btn-primary" style="width:100%; margin-top:20px; justify-content: center;" onclick="saveTask(true)">Criar no Backlog</button>
+        `;
+        document.getElementById('modal-container').style.display = 'flex';
+    }
+
+    function openTaskPage(id) {
+        activeTaskId = id;
+        const t = tasks.find(x => x.id === id);
+        if (!t) return;
+
+        const responsibles = [
+            "Emanuele Cristina Ribeiro Oliveira", "Daniela Santos Napolitano", "Ana Pereira", "Bruno Costa", "Carla Dias", 
+            "Eduardo Lima", "Fernanda Martins", "Gustavo Almeida", "Helena Rocha", "Igor Barbosa", "Juliana Castro", 
+            "Lucas Gomes", "Mariana Ferreira", "Nícolas Azevedo", "Olívia Sousa", "Pedro Ribeiro", "Rafaela Santos"
+        ];
+        
+        document.getElementById('task-page-title').innerText = "Atividade: " + t.title;
+        const detailsContainer = document.getElementById('task-page-details');
+        
+        detailsContainer.innerHTML = `
+            <label>Nome</label><input type="text" id="et-title" value="${t.title}">
+            <label>Descrição</label><textarea id="et-desc">${t.desc}</textarea>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px">
+                <div><label>Início</label><input type="date" id="et-start" value="${t.start}"></div>
+                <div><label>Entrega</label><input type="date" id="et-end" value="${t.end}"></div>
+                <div><label>Prioridade</label><select id="et-priority">
+                    <option value="low" ${t.priority=='low'?'selected':''}>Baixa</option>
+                    <option value="medium" ${t.priority=='medium'?'selected':''}>Média</option>
+                    <option value="high" ${t.priority=='high'?'selected':''}>Alta</option>
+                </select></div>
+                <div><label>Saúde (Mapa)</label><select id="et-health" disabled>
+                    <option value="green" ${(t.health||'green')=='green'?'selected':''}>Verde</option>
+                    <option value="yellow" ${t.health=='yellow'?'selected':''}>Amarela</option>
+                    <option value="red" ${t.health=='red'?'selected':''}>Vermelha</option>
+                </select></div>
+            </div>
+            <label>Acompanhamento</label><input type="datetime-local" id="et-check" value="${t.check}">
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px">
+                <div>
+                    <label>Status</label>
+                    <select id="et-status">
+                        <option value="todo" ${t.status=='todo'?'selected':''}>A Fazer</option>
+                        <option value="doing" ${t.status=='doing'?'selected':''}>Em Andamento</option>
+                        <option value="blocked" ${t.status=='blocked'?'selected':''}>Bloqueada</option>
+                        <option value="done" ${t.status=='done'?'selected':''}>Concluída</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Responsável</label>
+                    <select id="et-resp">
+                        ${responsibles.map(r => `<option ${t.resp == r ? 'selected' : ''}>${r}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label>Vincular a Sprint</label>
+                    <select id="et-sprint">
+                        <option value="">Nenhuma (Backlog)</option>
+                        ${sprints.map(s => `<option value="${s.id}" ${t.sprintId == s.id ? 'selected' : ''}>${s.title}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%; margin-top:20px;" onclick="updateTask(${t.id})">Salvar Alterações</button>
+        `;
+
+        document.getElementById('task-checkin-desc').value = '';
+
+        // Renderizar Logs da Atividade
+        const logContainer = document.getElementById('task-page-logs');
+        const taskLogs = logs.filter(l => l.taskId === id);
+        if(taskLogs.length > 0) {
+            logContainer.innerHTML = taskLogs.map(l => `
+                <div style="border-left: 3px solid var(--caixa-blue); padding-left: 10px; margin-bottom: 15px; font-size: 0.9rem;">
+                    <div style="color: #666; font-size: 0.8rem;">${l.date} - <strong>${l.user}</strong></div>
+                    <div style="font-weight: bold; margin-top: 3px;">${l.action}</div>
+                    <div style="margin-top: 3px;">${l.details}</div>
+                </div>
+            `).join('');
+        } else {
+            logContainer.innerHTML = '<p style="color:#666; font-size:0.9rem">Nenhum histórico encontrado para esta atividade.</p>';
+        }
+
+        // Renderizar Gráfico de Evolução do Prazo
+        const ctx = document.getElementById('taskEvolutionChart').getContext('2d');
+        if(window.taskEvChart) window.taskEvChart.destroy();
+        
+        let dateLabels = ['Estimativa Inicial'];
+        let startD = new Date(t.start);
+        let endD = new Date(t.end);
+        let currentDays = Math.ceil(Math.abs(endD - startD) / (1000 * 60 * 60 * 24)) || 1;
+        let dateValues = [currentDays]; 
+        
+        let dateChanges = taskLogs.filter(l => l.action === 'Edição de Tarefa' && l.details.includes('Entrega'));
+        
+        if (dateChanges.length > 0) {
+            dateChanges.reverse().forEach((l, idx) => {
+                dateLabels.push('Alt. ' + (idx + 1));
+                dateValues.push(Math.max(1, currentDays - (dateChanges.length - idx))); 
+            });
+        }
+        if (dateChanges.length > 0) {
+            dateLabels.push('Atual');
+            dateValues.push(currentDays);
+        }
+
+        window.taskEvChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dateLabels,
+                datasets: [{
+                    label: 'Dias Estimados p/ Entrega',
+                    data: dateValues,
+                    borderColor: '#002766',
+                    backgroundColor: 'rgba(0, 39, 102, 0.2)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: { scales: { y: { beginAtZero: true } } }
+        });
+
+        showPage('task');
+    }
+
+    function saveTask(isNew) {
+        const newTask = {
+            id: tasks.length ? Math.max(...tasks.map(t=>t.id)) + 1 : 101,
+            title: document.getElementById('mt-title').value,
+            desc: document.getElementById('mt-desc').value,
+            start: document.getElementById('mt-start').value,
+            end: document.getElementById('mt-end').value,
+            check: document.getElementById('mt-check').value,
+            resp: document.getElementById('mt-resp').value,
+            priority: document.getElementById('mt-priority').value,
+            health: document.getElementById('mt-health').value,
+            status: "todo",
+            sprintId: document.getElementById('mt-sprint').value ? parseInt(document.getElementById('mt-sprint').value) : null
+        };
+        tasks.push(newTask);
+        addLog(getCurrentUser(), 'Criação de Tarefa', `Atividade "${newTask.title}" criada.`, newTask.id, newTask.sprintId);
+        save();
+        showAlert("Sucesso", "Ticket criado com anexos em lote!");
+        closeModal();
+        showPage('backlog');
+    }
+
+    function updateTask(id) {
+        const t = tasks.find(x => x.id === id);
+        
+        const nTitle = document.getElementById('et-title').value;
+        const nDesc = document.getElementById('et-desc').value;
+        const nStart = document.getElementById('et-start').value;
+        const nEnd = document.getElementById('et-end').value;
+        const nCheck = document.getElementById('et-check').value;
+        const nStatus = document.getElementById('et-status').value;
+        const nResp = document.getElementById('et-resp').value;
+        const nPriority = document.getElementById('et-priority').value;
+        const nHealth = document.getElementById('et-health').value;
+        const nSprintId = document.getElementById('et-sprint').value ? parseInt(document.getElementById('et-sprint').value) : null;
+
+        let changes = [];
+        if(t.title !== nTitle) changes.push(`Título ('${t.title}' -> '${nTitle}')`);
+        if(t.status !== nStatus) changes.push(`Status ('${t.status}' -> '${nStatus}')`);
+        if(t.resp !== nResp) changes.push(`Responsável ('${t.resp.split(' ')[0]}' -> '${nResp.split(' ')[0]}')`);
+        if(t.priority !== nPriority) changes.push(`Prioridade`);
+        if(t.start !== nStart) changes.push(`Início ('${t.start}' -> '${nStart}')`);
+        if(t.end !== nEnd) changes.push(`Entrega ('${t.end}' -> '${nEnd}')`);
+        if(t.check !== nCheck) changes.push(`Data de Acompanhamento`);
+        if(t.desc !== nDesc) changes.push(`Descrição`);
+        if(t.sprintId !== nSprintId) changes.push(`Sprint`);
+
+        t.title = nTitle; t.desc = nDesc; t.start = nStart; t.end = nEnd;
+        t.check = nCheck; t.status = nStatus; t.resp = nResp; t.priority = nPriority;
+        t.sprintId = nSprintId; // Saúde agora é gerenciada pelo check-in
+
+        if (changes.length > 0) {
+            addLog(getCurrentUser(), 'Edição de Tarefa', `Atividade "${t.title}": Alterou ${changes.join(', ')}.`, t.id, t.sprintId);
+        }
+        
+        save();
+        showAlert("Atualizado", "Atividade salva!");
+        closeModal();
+        if (document.getElementById('page-board').classList.contains('active-page')) renderBoard();
+        else if (document.getElementById('page-backlog').classList.contains('active-page')) renderBacklog();
+        else if (document.getElementById('page-task').classList.contains('active-page')) openTaskPage(id);
+    }
+
+    function assignToSprint(taskId) {
+        const body = document.getElementById('modal-body');
+        document.getElementById('modal-title').innerText = "Vincular a Sprint Existente";
+        body.innerHTML = `
+            <label>Selecione a Sprint</label>
+            <select id="sel-sprint">
+                ${sprints.map(s => `<option value="${s.id}">${s.title}</option>`).join('')}
+            </select>
+            <button class="btn btn-primary" style="width:100%; margin-top:20px" onclick="finishAssign(${taskId})">Confirmar Vínculo</button>
+        `;
+        document.getElementById('modal-container').style.display = 'flex';
+    }
+
+    function finishAssign(taskId) {
+        const sid = document.getElementById('sel-sprint').value;
+        const t = tasks.find(x => x.id === taskId);
+        t.sprintId = parseInt(sid);
+        const s = sprints.find(x => x.id === parseInt(sid));
+        addLog(getCurrentUser(), 'Vínculo a Sprint', `Vinculou a atividade "${t.title}" à Sprint "${s.title}".`, t.id, t.sprintId);
+        save();
+        showAlert("Vínculo", "Tarefa movida para a Sprint!");
+        closeModal();
+        if (document.getElementById('page-backlog').classList.contains('active-page')) renderBacklog();
+    }
+
+    // --- NOVA SPRINT ---
+    function openSprintModal() {
+        const body = document.getElementById('modal-body');
+        document.getElementById('modal-title').innerText = "Criar Nova Sprint";
+        body.innerHTML = `
+            <label>Nome / Título da Sprint</label>
+            <input type="text" id="ms-title" placeholder="Ex: Sprint #21 - Recrutamento">
+            <label>Descrição / Objetivo</label>
+            <textarea id="ms-desc" placeholder="Descreva o objetivo principal deste ciclo..."></textarea>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
+                <div><label>Data Início</label><input type="date" id="ms-start"></div>
+                <div><label>Data Fim (Previsão)</label><input type="date" id="ms-end"></div>
+            </div>
+            <label>Mapa de Calor (Saúde da Sprint)</label>
+            <select id="ms-health">
+                <option value="green">Verde (Saudável)</option>
+                <option value="yellow">Amarelo (Atenção)</option>
+                <option value="red">Vermelho (Crítico)</option>
+            </select>
+            <label>Data de Acompanhamento</label><input type="datetime-local" id="ms-check">
+            <label>Status Inicial</label>
+            <select id="ms-status">
+                <option value="todo">A Fazer</option>
+                <option value="doing">Em Andamento</option>
+                <option value="done">Concluída</option>
+            </select>
+            <button class="btn btn-primary" style="width:100%; margin-top:20px;" onclick="saveSprint()">Salvar Nova Sprint</button>
+        `;
+        document.getElementById('modal-container').style.display = 'flex';
+    }
+
+    function saveSprint() {
+        const title = document.getElementById('ms-title').value;
+        const desc = document.getElementById('ms-desc').value;
+        const start = document.getElementById('ms-start').value;
+        const end = document.getElementById('ms-end').value;
+        const check = document.getElementById('ms-check').value;
+        const health = document.getElementById('ms-health').value;
+        
+        if(!title) return showAlert("Atenção", "O nome da Sprint é obrigatório!");
+        
+        const newSprint = {
+            id: sprints.length ? Math.max(...sprints.map(s => s.id)) + 1 : 1,
+            title: title,
+            desc: desc,
+            start: start,
+            end: end,
+            check: check,
+            health: health,
+            status: document.getElementById('ms-status').value,
+            pct: 0, checkToday: false, delayed: false
+        };
+        sprints.push(newSprint);
+        addLog(getCurrentUser(), 'Criação de Sprint', `Criou a sprint "${newSprint.title}".`, null, newSprint.id);
+        save();
+        showAlert("Sucesso", "Sprint criada com sucesso!");
+        closeModal();
+        renderSprints();
+    }
+
+    // --- SPRINTS & BOARD ---
+    function renderSprints() {
+        const list = document.getElementById('sprint-list');
+        list.innerHTML = sprints.map(s => `
+            <div class="sprint-card 
+                ${s.delayed ? 'border-blink-red' : ''} 
+                ${s.checkToday ? 'border-blink-yellow' : ''}" 
+                onclick="goToBoard(${s.id})"
+                style="border-left: 10px solid ${s.status=='doing' ? 'var(--caixa-light)' : (s.status=='done' ? 'var(--caixa-green)' : '#ccc')}">
+                
+                <div style="display:flex; justify-content:space-between">
+                    <div>
+                        <h3 style="margin:0">${s.title}</h3>
+                        <small>Status: ${s.status}</small>
+                        ${s.start && s.end ? `<br><small style="color:#666; margin-top:5px; display:block;"><i class="fa-regular fa-calendar"></i> ${s.start.split('-').reverse().join('/')} até ${s.end.split('-').reverse().join('/')}</small>` : ''}
+                    </div>
+                    <div class="sprint-pct">${s.pct}%</div>
+                </div>
+                <div style="height:10px; background:#eee; border-radius:5px; margin-top:15px">
+                    <div style="height:100%; width:${s.pct}%; background:var(--caixa-green); border-radius:5px"></div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function goToBoard(id) {
+        activeSprintId = id;
+        showPage('board');
+    }
+
+    function renderBoard() {
+        const s = sprints.find(x => x.id === activeSprintId);
+        if (!s) return;
+        document.getElementById('board-title').innerText = s.title;
+        
+        const filterResp = document.getElementById('board-filter-resp').value;
+
+        boardSortables.forEach(sortable => sortable.destroy());
+        boardSortables = [];
+
+        const renderCol = (status, colId) => {
+            const col = document.querySelector(`#${colId} .list-group`);
+            let filteredTasks = tasks.filter(t => t.sprintId === activeSprintId && t.status === status);
+            
+            if (filterResp !== "Todos") {
+                filteredTasks = filteredTasks.filter(t => t.resp === filterResp || t.resp.includes(filterResp));
+            }
+
+            const statusColors = {
+                'todo': 'var(--caixa-blue)',
+                'doing': 'var(--caixa-yellow)',
+                'blocked': 'var(--caixa-red)',
+                'done': 'var(--caixa-green)'
+            };
+            
+            col.innerHTML = filteredTasks.map(t => `
+                <div class="card-task" data-id="${t.id}" onclick="openTaskPage(${t.id})" style="border-left-color: ${statusColors[t.status]}; transition: border-color 0.3s ease;">
+                    <strong>${t.title}</strong><br>
+                    <small>${t.resp.split(' ')[0]}</small>
+                </div>
+            `).join('');
+            
+            boardSortables.push(new Sortable(col, {
+                group: 'shared',
+                animation: 150,
+                onEnd: function (evt) {
+                    const tid = evt.item.getAttribute('data-id');
+                    const newStatus = evt.to.parentElement.id.replace('col-', '');
+                    const task = tasks.find(x => x.id == tid);
+                    task.status = newStatus;
+                    evt.item.style.borderLeftColor = statusColors[newStatus];
+                    const statusNames = { todo: 'A Fazer', doing: 'Em Andamento', blocked: 'Bloqueada', done: 'Concluída' };
+                    addLog(getCurrentUser(), 'Mudança de Status (Board)', `Moveu "${task.title}" para "${statusNames[newStatus]}".`, task.id, task.sprintId);
+                    save();
+                    showAlert("Movido", "Status atualizado!");
+                }
+            }));
+        };
+
+        renderCol('todo', 'col-todo');
+        renderCol('doing', 'col-doing');
+        renderCol('blocked', 'col-blocked');
+        renderCol('done', 'col-done');
+    }
+
+    function submitTaskCheckin(color) {
+        if(!activeTaskId) return;
+        const t = tasks.find(x => x.id === activeTaskId);
+        const desc = document.getElementById('task-checkin-desc').value;
+        
+        if ((color === 'yellow' || color === 'red') && !desc.trim()) {
+            return showAlert("Atenção", "Por favor, insira uma descrição para justificar a classificação Amarela ou Vermelha.");
+        }
+        
+        t.health = color;
+        const colorName = color === 'green' ? 'Verde (Saudável)' : color === 'yellow' ? 'Amarela (Risco)' : 'Vermelha (Crítico)';
+        
+        let logDetails = `Classificou a saúde como ${colorName}.`;
+        if (desc.trim()) logDetails += ` Comentário: "${desc.trim()}"`;
+        
+        addLog(getCurrentUser(), 'Check-in de Acompanhamento', logDetails, t.id, t.sprintId);
+        save();
+        showAlert("Sucesso", "Acompanhamento registrado!");
+        openTaskPage(t.id); // Atualiza os logs e status na mesma tela
+    }
+
+    // --- CHECK-IN MOBILE ---
+    function openMobileTracking(id) {
+        const t = tasks.find(x => x.id === id);
+        if (!t) return;
+        const body = document.getElementById('mobile-tracking-body');
+        
+        const statusMap = { todo: 'A Fazer', doing: 'Em Andamento', blocked: 'Bloqueada', done: 'Concluída' };
+        
+        body.innerHTML = `
+            <div class="mobile-card" style="border-top: 5px solid var(--caixa-blue)">
+                <h3 style="margin:0 0 10px 0; color: var(--caixa-blue)">${t.title}</h3>
+                <p style="font-size:0.9rem; color:#666; margin: 0 0 15px 0;">${t.desc}</p>
+                <div style="font-size:0.85rem; line-height:1.6">
+                    <strong>Previsão:</strong> ${t.end.split('-').reverse().join('/')}<br>
+                    <strong>Status:</strong> ${statusMap[t.status]}<br>
+                    <strong>Sprint:</strong> ${t.sprintId ? sprints.find(s=>s.id == t.sprintId)?.title : 'Backlog'}
+                </div>
+            </div>
+            <div class="mobile-card">
+                <h4 style="margin:0 0 15px 0; text-align:center; color: var(--caixa-blue)">Como está o andamento desta atividade?</h4>
+                <textarea id="mobile-checkin-desc" rows="3" placeholder="Justificativa (Obrigatório para Amarelo/Vermelho)" style="width: 100%; border-radius: 8px; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; box-sizing: border-box;"></textarea>
+                <button class="mobile-btn mobile-btn-green" onclick="updateMobileHealth(${t.id}, 'green')"><i class="fa-regular fa-face-smile-beam" style="font-size:1.5rem"></i> Tudo Certo</button>
+                <button class="mobile-btn mobile-btn-yellow" onclick="updateMobileHealth(${t.id}, 'yellow')"><i class="fa-regular fa-face-meh" style="font-size:1.5rem"></i> Risco de Atraso</button>
+                <button class="mobile-btn mobile-btn-red" onclick="updateMobileHealth(${t.id}, 'red')"><i class="fa-regular fa-face-frown" style="font-size:1.5rem"></i> Bloqueado/Atraso</button>
+            </div>
+        `;
+        showPage('mobile-tracking');
+    }
+
+    function updateMobileHealth(taskId, color) {
+        const t = tasks.find(x => x.id === taskId);
+        if (!t) return;
+        const desc = document.getElementById('mobile-checkin-desc').value;
+        
+        if ((color === 'yellow' || color === 'red') && !desc.trim()) {
+            return showAlert("Atenção", "Por favor, justifique o status Amarelo ou Vermelho na descrição.");
+        }
+        
+        t.health = color;
+        const colorName = color === 'green' ? 'Verde (Saudável)' : color === 'yellow' ? 'Amarela (Risco)' : 'Vermelha (Crítico)';
+        
+        let logDetails = `Reportou a saúde da atividade como ${colorName}.`;
+        if (desc.trim()) logDetails += ` Comentário: "${desc.trim()}"`;
+        
+        addLog(getCurrentUser(), 'Check-in Diário', logDetails, t.id, t.sprintId);
+        save();
+        showAlert("Sucesso", "Acompanhamento registrado com sucesso!");
+        showPage('dash');
+    }
+
+    window.onload = () => {
+        load();
+        showPage('home');
+        checkRemindersOnLoad();
+    };
+</script>
+
+</body>
+</html>
