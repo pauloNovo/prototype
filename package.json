@@ -1,0 +1,19 @@
+{
+  "name": "gticket-next",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "chart.js": "^4.4.0",
+    "react-chartjs-2": "^5.2.0",
+    "react-sortablejs": "^6.1.4",
+    "sortablejs": "^1.15.0"
+  }
+}
